@@ -13,6 +13,7 @@ import seaborn as sns
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import RANSACRegressor
 from sklearn.model_selection import train_test_split
 import scipy as sp
@@ -171,7 +172,7 @@ for i in range(102):
   plt.axhline(y = np.mean(pas_3[0]), color = "green")
   plt.axhline(y = np.mean(pas_4[0]), color = "yellow")
   
- """We can see how the pas 2 = the blue line has the highest magnetic field""""  
+ #"""We can see how the pas 2 = the blue line has the highest magnetic field""""  
   
 #this visualize the means of all passes on top of the average magnitudes 
 ### maybe we should have done this exact thing but on the sensor with highest magnitude:
@@ -200,34 +201,28 @@ for i in range(len(data[:, 73, 0])):
     plt.axhline(y = np.mean(s_pas_3[0]), color = "green")
     plt.axhline(y = np.mean(s_pas_4[0]), color = "yellow")
     
-"""this shows how pas2 has the lowest magnitude score, pas3 the highest, and 1 and 4 being in the middle - not as one might have expected. 
-Since the magnitude should seem to correspond with the clarity of the subjective experience. but this does not seem to be the case - wild guess here"""
+#this shows how pas2 has the lowest magnitude score, pas3 the highest, and 1 and 4 being in the middle - not as one might have expected. 
+#Since the magnitude should seem to correspond with the clarity of the subjective experience. but this does not seem to be the case - wild guess here"""
 
 #%%
 #     iii. Notice that there are two early peaks (measuring visual activity from the brain), one before 200 ms and one around 250 ms. Describe how the amplitudes of responses are related to the four PAS-scores. Does PAS 2 behave differently than expected?  
-"""here a cool explaining could be given - not by me"""
+#here a cool explaining could be given - not by me"""
 
 #%%
 # # EXERCISE 2 - Do logistic regression to classify pairs of PAS-ratings  
 
 # 1) Now, we are going to do Logistic Regression with the aim of classifying the PAS-rating given by the subject  
+#     i. We'll start with a binary problem - create a new array called `data_1_2` that only contains PAS responses 1 and 2. 
+#      Similarly, create a `y_1_2` for the target vector  
+list_y = np.argwhere((vector_y ==1) | (vector_y == 2))
+y_1_2 = vector_y[list_y]
 
 #%%
-#     i. We'll start with a binary problem - create a new array called `data_1_2` that only contains PAS responses 1 and 2. Similarly, create a `y_1_2` for the target vector  
-print(np.bincount(vector_y))
-
-#first we found how many of each pass there were in the list - the number have we now made into lists of 1 and 2 and appended them into a empty frame:
-list_one = [1]*99
-list_two = [2]*115
-y_1_2 = []
-y_1_2.extend(list_one)
-y_1_2.extend(list_two)
-
 
 #taking the target values for each pass and saved them into data_1_2
 data_one = data[pas_one,:,:]
 data_two = data[pas_two,:,:]
-data_1_2 = np.concatenate((data_one,data_two), axis = 2)
+data_1_2 = np.squeeze(np.concatenate((data_one,data_two), axis = 0))
 
 
 ##looking at the length to make sure they are the same
@@ -235,40 +230,103 @@ print(data_1_2.shape)
 
 #%%
 #     ii. Scikit-learn expects our observations (`data_1_2`) to be in a 2d-array, which has samples (repetitions) on dimension 1 and features (predictor variables) on dimension 2. Our `data_1_2` is a three-dimensional array. Our strategy will be to collapse our two last dimensions (sensors and time) into one dimension, while keeping the first dimension as it is (repetitions). Use `np.reshape` to create a variable `X_1_2` that fulfils these criteria.  
-
-
-
+X_1_2 = data_1_2.transpose(0,1,2).reshape(-1,data_1_2.shape[0])
+print(X_1_2.shape)
+#this appears to be right since the shape now is the collapsed data in the 25602 row and the 214 repitions are the columns. 
 
 #%%
 #     iii. Import the `StandardScaler` and scale `X_1_2`  
-#     iv. Do a standard `LogisticRegression` - can be imported from `sklearn.linear_model` - make sure there is no `penalty` applied  
-#     v. Use the `score` method of `LogisticRegression` to find out how many labels were classified correctly. Are we overfitting? Besides the score, what would make you suspect that we are overfitting?  
-#     vi. Now apply the _L1_ penalty instead - how many of the coefficients (`.coef_`) are non-zero after this?  
-#     vii. Create a new reduced $X$ that only includes the non-zero coefficients - show the covariance of the non-zero features (two covariance matrices can be made; $X_{reduced}X_{reduced}^T$ or $X_{reduced}^TX_{reduced}$ (you choose the right one)) . Plot the covariance of the features using `plt.imshow`. Compared to the plot from 1.1.iii, do we see less covariance?  
-# 2) Now, we are going to build better (more predictive) models by using cross-validation as an outcome measure    
-#     i. Import `cross_val_score` and `StratifiedKFold` from `sklearn.model_selection`  
-#%%
-#     ii. To make sure that our training data sets are not biased to one target (PAS) or the other, create `y_1_2_equal`, which should have an equal number of each target. Create a similar `X_1_2_equal`. The function `equalize_targets_binary` in the code chunk associated with Exercise 2.2.ii can be used. Remember to scale `X_1_2_equal`!  
-def equalize_targets_binary(data, y):
-np.random.seed(7)
-targets = np.unique(y) ## find the number of targets
-if len(targets) > 2:
-raise NameError ("can't have more than two targets")
-counts = list()
-indices = list()
-for target in targets:
-counts.append(np.sum(y == target)) ## find the number of each target
-indices.append(np.where(y == target)[0]) ## find their indices
-min_count = np.min(counts)
-# randomly choose trials
-first_choice = np.random.choice(indices[0], size=min_count, replace=False)
-second_choice = np.random.choice(indices[1], size=min_count,replace=False)
-# create the new data sets
-new_indices = np.concatenate((first_choice, second_choice))
-new_y = y[new_indices]
+#reshapingen 
+X_1_2_reshaped = X_1_2.reshape(214, 25602)
 
-new_data = data[new_indices, :, :]
-return new_data, new_y
+
+
+## splitting the data so we can test how well it classifies the test set:
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X_1_2_reshaped, y_1_2, test_size=0.2,
+                                                    random_state=0)
+
+#making everything on the same scale
+sc = StandardScaler()
+sc.fit(X_1_2_reshaped)
+X_train_std = sc.transform(X_train)
+X_test_std = sc.transform(X_test)
+
+
+
+#%%
+#     iv. Do a standard `LogisticRegression` - can be imported from `sklearn.linear_model` - make sure there is no `penalty` applied  
+logR = LogisticRegression(penalty='none') # no regularisation
+logR.fit(X_train_std, y_train)
+
+
+#%%
+#     v. Use the `score` method of `LogisticRegression` to find out how many labels were classified correctly. Are we overfitting? Besides the score, what would make you suspect that we are overfitting?  
+print(logR.score(X_test_std, y_test))
+#### this means that 55,1% of the classifications are correct. 
+## this is not very much, which might could be explained by overfitting of the test data. The model are therefore not generalisable, and classifies the test data quite badly.
+## if the model was not overfitted to the train data, we would expect it to be a better classifier - maybe we should penalizzzzze it 
+
+
+#%%
+#     vi. Now apply the _L1_ penalty instead - how many of the coefficients (`.coef_`) are non-zero after this?  
+log_l1 = LogisticRegression(penalty = 'l1', solver = 'liblinear') # set 
+log_l1.fit(X_train_std, y_train)
+print(log_l1.score(X_test_std, y_test))
+#now that we have fitted the new penalized model we can check how many of the coefficients are not equal to zero
+#this actually has a lower accuracy of classification 
+#%%
+#finding the zeros 
+l1_coef = log_l1.coef_
+print(np.count_nonzero(l1_coef == 0)) #this is the amounts of 0's 
+print(np.count_nonzero(l1_coef != 0)) #this is the amounts of non 0's 
+
+
+#%%
+#     vii. Create a new reduced $X$ that only includes the non-zero coefficients - show the covariance of the non-zero features (two covariance matrices can be made; $X_{reduced}X_{reduced}^T$ or $X_{reduced}^TX_{reduced}$ (you choose the right one)) . Plot the covariance of the features using `plt.imshow`. Compared to the plot from 1.1.iii, do we see less covariance?  
+log1_coef_0 = np.where(l1_coef!= 0)[1]
+log1_coef_0.shape
+
+reduced_X=X_1_2_reshaped[:,log1_coef_0]
+reduced_X.shape
+
+plt.imshow(np.cov(reduced_X))
+
+#%%
+# 2) Now, we are going to build better (more predictive) models by using cross-validation as an outcome measure 
+
+   
+#     i. Import `cross_val_score` and `StratifiedKFold` from `sklearn.model_selection`  
+from sklearn.model_selection import cross_val_score, StratifiedKFold 
+
+#%%
+#     ii. To make sure that our training data sets are not biased to one target (PAS) or the other, create `y_1_2_equal`, which should have an equal number of each target. 
+# Create a similar `X_1_2_equal`. The function `equalize_targets_binary` in the code chunk associated with Exercise 2.2.ii can be used. 
+# Remember to scale `X_1_2_equal`!  
+def equalize_targets_binary(data, y):
+    np.random.seed(7)
+    targets = np.unique(y) ## find the number of targets
+    if len(targets) > 2:
+        raise NameError ("can't have more than two targets") #may only be binary
+    counts = list()
+    indices = list()
+    for target in targets:
+        counts.append(np.sum(y == target)) ## find the number of each target
+        indices.append(np.where(y == target)[0]) ## find their indices
+    min_count = np.min(counts)
+    # randomly choose trials
+    first_choice = np.random.choice(indices[0], size=min_count, replace=False)
+    second_choice = np.random.choice(indices[1], size=min_count,replace=False)
+    # create the new data sets
+    new_indices = np.concatenate((first_choice, second_choice))
+    new_y = y[new_indices]
+
+    new_data = data[new_indices, :, :]
+    return new_data, new_y
+
+
+#%%
+data_1_2_equal, y_1_2_equal_new = equalize_targets_binary(data_1_2, y_1_2)
 
 
 #%%
